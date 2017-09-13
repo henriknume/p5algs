@@ -13,13 +13,17 @@ const WHITE = 255
 
 const balloons = []
 const rays = []
-var raygun
+let raygun
+let controlLine
 
 function setup () {
   createCanvas(640, 400)
   background(BG_COLOR)
   generateRandomBalloons(NR_OF_BALLOONS, MAX_NR_OF_ATTEMPTS)
   raygun = new Raygun()
+
+  controlLine = new MyLine(new MyPoint(200, 200), new MyPoint(200, 50))
+
 }
 
 function draw() {
@@ -31,6 +35,7 @@ function draw() {
     r.draw()
   }
   raygun.draw()
+  controlLine.draw()
 }
 
 function mouseClicked() {
@@ -41,6 +46,7 @@ function mouseClicked() {
     rays.push(ray)
     scanForHitsBy(ray)
   }
+
 }
 
 function generateRandomBalloons(num, attempts) {
@@ -206,5 +212,25 @@ class Balloon {
     }
     stroke(BLACK)
     ellipse(this.xPos, this.yPos, this.radius*2, this.radius*2)
+  }
+}
+
+class MyPoint{
+  constructor(x, y) {
+    this.x = x
+    this.y = y
+  }
+}
+
+class MyLine{
+  // point0 is the pivot point
+  constructor(point0, point1) {
+    this.p0 = point0
+    this.p1 = point1
+  }
+
+  draw() {
+    stroke(0, 0, 255)
+    line(this.p0.x, this.p0.y, this.p1.x, this.p1.y)
   }
 }
