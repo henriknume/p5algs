@@ -22,7 +22,7 @@ function setup () {
   generateRandomBalloons(NR_OF_BALLOONS, MAX_NR_OF_ATTEMPTS)
   raygun = new Raygun()
 
-  controlLine = new MyLine(new MyPoint(200, 200), new MyPoint(200, 50))
+  controlLine = new MyLine([200, 200], [200, 50])
 
 }
 
@@ -215,13 +215,6 @@ class Balloon {
   }
 }
 
-class MyPoint{
-  constructor(x, y) {
-    this.x = x
-    this.y = y
-  }
-}
-
 class MyLine{
   // point0 is the pivot point
   constructor(point0, point1) {
@@ -231,6 +224,6 @@ class MyLine{
 
   draw() {
     stroke(0, 0, 255)
-    line(this.p0.x, this.p0.y, this.p1.x, this.p1.y)
+    line(this.p0[0], this.p0[1], this.p1[0], this.p1[1])
   }
 }
