@@ -22,8 +22,7 @@ function setup () {
   generateRandomBalloons(NR_OF_BALLOONS, MAX_NR_OF_ATTEMPTS)
   raygun = new Raygun()
 
-  controlLine = new MyLine(new MyPoint(200, 200), new MyPoint(200, 50))
-
+  //controlLine = new MyLine([200, 200], [200, 50])
 }
 
 function draw() {
@@ -35,18 +34,48 @@ function draw() {
     r.draw()
   }
   raygun.draw()
-  controlLine.draw()
+  if (controlLine != undefined) {
+    controlLine.draw()
+  }
 }
 
 function mouseClicked() {
   if (!raygun.isPlaced()) {
     raygun.placeAt(mouseX, mouseY)
   } else {
-    let ray = new Ray(mouseX, mouseY, raygun)
-    rays.push(ray)
-    scanForHitsBy(ray)
-  }
 
+    if (controlLine == undefined) {
+      controlLine = new MyLine([raygun.xPos, raygun.yPos], [mouseX, mouseY], raygun)
+    } else {
+      solve()
+    }
+  }
+}
+
+function solve() {
+
+  for (let i = 0; i < 360; i++) {
+    controlLine.rotateLine(1)
+    for (var b of balloons) {
+      let rl = controlLine.getLineCoords()
+      let bl = b.getNormalLineFrom(controlLine)
+      if (lineIntersect(rl[0], rl[1], rl[2], rl[3], bl[0], bl[1], bl[2], bl[3]) && !b.popped) {
+        //fire ray
+        let ray = new Ray(controlLine.p1[0],controlLine.p1[1], raygun)
+        rays.push(ray)
+        scanForHitsBy(ray)
+      }
+    }
+  }
+}
+
+function ballonsLeft() {
+  for (let b of balloons) {
+    if (!b.popped) {
+      return true
+    }
+  }
+  return false
 }
 
 function generateRandomBalloons(num, attempts) {
@@ -88,7 +117,9 @@ function lineIntersect(x1,y1,x2,y2, x3,y3,x4,y4) {
     var x=((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4))
     var y=((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4))
     if (isNaN(x)||isNaN(y)) {
-        throw new Error("Error: invalid arguments isNan")
+        //throw new Error("Error: invalid arguments isNan")
+        console.log("isNan")
+        return false
     } else {
         if (x1>=x2) {
             if (!(x2<=x&&x<=x1)) {return false}
@@ -215,22 +246,40 @@ class Balloon {
   }
 }
 
-class MyPoint{
-  constructor(x, y) {
-    this.x = x
-    this.y = y
-  }
-}
-
 class MyLine{
   // point0 is the pivot point
   constructor(point0, point1) {
     this.p0 = point0
     this.p1 = point1
+    this.angle = this.getAngleDeg(point0, point1)
+  }
+
+  getAngleDeg(a, b) {
+    return Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+  }
+
+  //Rotating point p1 around point p0 with the angle in degrees.
+  rotateLine(degrees) {
+    this.angle = ((this.angle + degrees) % 360)
+    let r = dist(this.p0[0], this.p0[1], this.p1[0], this.p1[1])
+    let x = this.p0[0]
+    let y = this.p0[1]
+    let dx = r * cos(radians(this.angle))
+    let dy = r * sin(radians(this.angle))
+    this.p1[0] = x + dx;
+    this.p1[1] = y + dy;
   }
 
   draw() {
     stroke(0, 0, 255)
-    line(this.p0.x, this.p0.y, this.p1.x, this.p1.y)
+    line(this.p0[0], this.p0[1], this.p1[0], this.p1[1])
+  }
+
+  getLineCoords() {
+    return [this.p0[0], this.p0[1], this.p1[0], this.p1[1]]
+  }
+
+  getSlope() {
+    return (this.p1[1] - this.p0[1]) / (this.p1[0] - this.p0[0])
   }
 }
