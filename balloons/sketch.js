@@ -1,6 +1,6 @@
 // Balloon stuff
 const MAX_NR_OF_ATTEMPTS = 10000
-const NR_OF_BALLOONS = 20
+const NR_OF_BALLOONS = 4
 const MIN_RADIUS = 20
 const MAX_RADIUS = 80
 const SPACING = 1
@@ -12,6 +12,7 @@ const BLACK = 0
 const WHITE = 255
 
 const balloons = []
+const sortedBalloons = []
 const rays = []
 let raygun
 let controlLine
@@ -21,8 +22,6 @@ function setup () {
   background(BG_COLOR)
   generateRandomBalloons(NR_OF_BALLOONS, MAX_NR_OF_ATTEMPTS)
   raygun = new Raygun()
-
-  //controlLine = new MyLine([200, 200], [200, 50])
 }
 
 function draw() {
@@ -31,11 +30,11 @@ function draw() {
     b.draw()
   }
   for (var r of rays) {
-    r.draw()
+    r.drawRed()
   }
   raygun.draw()
   if (controlLine != undefined) {
-    controlLine.draw()
+    controlLine.drawGreen()
   }
 }
 
@@ -45,28 +44,51 @@ function mouseClicked() {
   } else {
 
     if (controlLine == undefined) {
-      controlLine = new MyLine([raygun.xPos, raygun.yPos], [mouseX, mouseY], raygun)
+      controlLine = new Ray([raygun.xPos, raygun.yPos], [mouseX, mouseY])
     } else {
+
+      sortb(balloons, controlLine)
       solve()
     }
   }
 }
 
 function solve() {
-
-  for (let i = 0; i < 360; i++) {
-    controlLine.rotateLine(1)
     for (var b of balloons) {
-      let rl = controlLine.getLineCoords()
+
+      b.getRightPointOfNormalLineFrom()
+
+      let rl = controlLine.getEdgeLineCoord()
       let bl = b.getNormalLineFrom(controlLine)
       if (lineIntersect(rl[0], rl[1], rl[2], rl[3], bl[0], bl[1], bl[2], bl[3]) && !b.popped) {
         //fire ray
-        let ray = new Ray(controlLine.p1[0],controlLine.p1[1], raygun)
+        let ray = new Ray([raygun.xPos, raygun.yPos], [controlLine.p1[0],controlLine.p1[1]])
         rays.push(ray)
         scanForHitsBy(ray)
       }
     }
   }
+}
+
+function sortb(balloons, line){
+  for (let b of balloons) {
+    b.distToCtrl = getAngleToB(b, line)
+  }
+  let res = balloons.sort(function(a, b) {
+    return parseFloat(a.distToCtrl) - parseFloat(b.distToCtrl);
+  })
+}
+
+function getAngleToB(balloon, fromLine) {
+  let b = getAngleDegB([fromLine.p0[0], fromLine.p0[1]], [balloon.xPos, balloon.yPos])
+  let a = fromLine.angle
+  let res = b - a
+  console.log("res:" + res)
+  return res
+}
+
+function getAngleDegB(a, b) {
+  return Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
 }
 
 function ballonsLeft() {
@@ -105,7 +127,7 @@ function noCollision(newB) {
 
 function scanForHitsBy(ray) {
   for (var b of balloons) {
-    let rl = ray.getLineCoords()
+    let rl = ray.getEdgeLineCoords()
     let bl = b.getNormalLineFrom(ray)
     if (lineIntersect(rl[0], rl[1], rl[2], rl[3], bl[0], bl[1], bl[2], bl[3])) {
       b.popIt()
@@ -147,139 +169,4 @@ function lineIntersect(x1,y1,x2,y2, x3,y3,x4,y4) {
 
 function randomIntBetween(min, max) {
   return Math.round(Math.random() * (max - min) + min)
-}
-
-//#################  CLASSES
-class Ray {
-  constructor(x, y, rg) {
-    this.xPos = x
-    this.yPos = y
-    this.p0 = this.calcPoint(rg)
-    this.p1 = [rg.xPos, rg.yPos] // raygunpos
-  }
-
-  getSlope() {
-    return (this.p1[1] - this.p0[1]) / (this.p1[0] - this.p0[0])
-  }
-
-  calcPoint(rg) {
-    let point
-    if (this.xPos < rg.xPos) {
-      point = this.pointAtX(rg, this, 0)
-    } else {
-      point = this.pointAtX(rg, this, width)
-    }
-    return point
-  }
-
-  pointAtX(a, b, x) {
-    var slope = (b.yPos - a.yPos) / (b.xPos - a.xPos)
-    var y = a.yPos + (x - a.xPos) * slope
-    return [x, y]
-  }
-
-  getLineCoords() {
-    return [this.p0[0], this.p0[1], this.p1[0], this.p1[1]]
-  }
-
-  draw() {
-    // Calculate a point for an extended line to the edge of the canvas
-    stroke(240, 0, 0)
-    line(this.p0[0], this.p0[1], this.p1[0], this.p1[1])
-  }
-}
-
-class Raygun {
-  constructor(){
-    this.xPos = null
-    this.yPos = null
-  }
-
-  placeAt(x, y) {
-    this.xPos = x
-    this.yPos = y
-  }
-
-  isPlaced() {
-    return this.xPos != null || this.yPos != null
-  }
-
-  draw() {
-    if (this.isPlaced()) {
-      fill(RAYGUN_COLOR)
-      stroke(BLACK)
-      ellipse(this.xPos, this.yPos, 15, 15)
-    }
-  }
-}
-
-class Balloon {
-  constructor() {
-    this.radius = randomIntBetween(MIN_RADIUS, MAX_RADIUS)
-    this.xPos = randomIntBetween(this.radius, (width) - this.radius)
-    this.yPos = randomIntBetween(this.radius, (height) - this.radius)
-    this.popped = false
-  }
-
-  getNormalLineFrom(ray) {
-    let r = this.radius
-    let k = -1/(ray.getSlope())
-    let a = sqrt(  sq(r)/(sq(k) + 1)  )
-    let b = a * k
-    // [x0, y0, x1, y1]
-    return [this.xPos - a, this.yPos - b, this.xPos + a, this.yPos + b]
-  }
-
-  popIt() {
-    console.log("popped")
-    this.popped = true
-  }
-
-  draw() {
-    if (this.popped) {
-      fill(BG_COLOR)
-    } else {
-      fill(WHITE)
-    }
-    stroke(BLACK)
-    ellipse(this.xPos, this.yPos, this.radius*2, this.radius*2)
-  }
-}
-
-class MyLine{
-  // point0 is the pivot point
-  constructor(point0, point1) {
-    this.p0 = point0
-    this.p1 = point1
-    this.angle = this.getAngleDeg(point0, point1)
-  }
-
-  getAngleDeg(a, b) {
-    return Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
-  }
-
-  //Rotating point p1 around point p0 with the angle in degrees.
-  rotateLine(degrees) {
-    this.angle = ((this.angle + degrees) % 360)
-    let r = dist(this.p0[0], this.p0[1], this.p1[0], this.p1[1])
-    let x = this.p0[0]
-    let y = this.p0[1]
-    let dx = r * cos(radians(this.angle))
-    let dy = r * sin(radians(this.angle))
-    this.p1[0] = x + dx;
-    this.p1[1] = y + dy;
-  }
-
-  draw() {
-    stroke(0, 0, 255)
-    line(this.p0[0], this.p0[1], this.p1[0], this.p1[1])
-  }
-
-  getLineCoords() {
-    return [this.p0[0], this.p0[1], this.p1[0], this.p1[1]]
-  }
-
-  getSlope() {
-    return (this.p1[1] - this.p0[1]) / (this.p1[0] - this.p0[0])
-  }
 }
